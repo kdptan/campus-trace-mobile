@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_routes.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/labeled_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../data/login_service.dart';
+import '../../data/models/login_user_request.dart';
 import '../widgets/google_logo_mark.dart';
 import '../widgets/login_header.dart';
+import '../widgets/password_field.dart';
 import '../widgets/social_sign_in_button.dart';
 
 class LoginPage extends StatefulWidget {
@@ -21,6 +25,9 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  bool _isSubmitting = false;
+  bool _isGoogleSubmitting = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -28,9 +35,73 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _onLoginPressed() {
+  Future<void> _onLoginPressed() async {
     FocusScope.of(context).unfocus();
-    _formKey.currentState?.validate();
+
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+    if (_isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final profile = await const LoginService().login(
+        LoginUserRequest(
+          email: _emailController.text,
+          password: _passwordController.text,
+        ),
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.dashboard,
+        (route) => false,
+        arguments: profile,
+      );
+    } on AppException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login failed. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _onGoogleSignInPressed() async {
+    if (_isSubmitting || _isGoogleSubmitting) return;
+
+    setState(() => _isGoogleSubmitting = true);
+
+    try {
+      final profile = await const LoginService().signInWithGoogle();
+
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.dashboard,
+        (route) => false,
+        arguments: profile,
+      );
+    } on AppException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Google sign in failed. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isGoogleSubmitting = false);
+    }
   }
 
   @override
@@ -70,11 +141,10 @@ class _LoginPageState extends State<LoginPage> {
                                 textInputAction: TextInputAction.next,
                               ),
                               const SizedBox(height: 18),
-                              LabeledTextField(
+                              PasswordField(
                                 label: 'Password',
                                 hintText: 'at least 8 characters',
                                 controller: _passwordController,
-                                obscureText: true,
                                 textInputAction: TextInputAction.done,
                               ),
                               const SizedBox(height: 8),
@@ -88,7 +158,9 @@ class _LoginPageState extends State<LoginPage> {
                               const SizedBox(height: 10),
                               PrimaryButton(
                                 label: 'Login',
-                                onPressed: _onLoginPressed,
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : _onLoginPressed,
                               ),
                               const SizedBox(height: 22),
                               Row(
@@ -111,7 +183,9 @@ class _LoginPageState extends State<LoginPage> {
                               const SizedBox(height: 18),
                               SocialSignInButton(
                                 label: 'Sign in with Google',
-                                onPressed: () {},
+                                onPressed: _isGoogleSubmitting
+                                    ? null
+                                    : _onGoogleSignInPressed,
                                 leading: const GoogleLogoMark(),
                               ),
                               const SizedBox(height: 24),

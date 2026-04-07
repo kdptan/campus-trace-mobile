@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_routes.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/labeled_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../data/login_service.dart';
+import '../../data/models/register_user_request.dart';
 import '../../data/register_service.dart';
 import '../widgets/google_logo_mark.dart';
 import '../widgets/password_field.dart';
@@ -27,6 +30,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
 
   bool _isSubmitting = false;
+  bool _isGoogleSubmitting = false;
 
   @override
   void dispose() {
@@ -48,10 +52,12 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isSubmitting = true);
     try {
       await const RegisterService().register(
-        email: _emailController.text,
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        password: _passwordController.text,
+        RegisterUserRequest(
+          email: _emailController.text,
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+          password: _passwordController.text,
+        ),
       );
 
       if (!mounted) return;
@@ -71,6 +77,37 @@ class _RegisterPageState extends State<RegisterPage> {
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _onGoogleSignInPressed() async {
+    if (_isSubmitting || _isGoogleSubmitting) return;
+
+    setState(() => _isGoogleSubmitting = true);
+
+    try {
+      final profile = await const LoginService().signInWithGoogle();
+
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.dashboard,
+        (route) => false,
+        arguments: profile,
+      );
+    } on AppException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Google sign in failed. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isGoogleSubmitting = false);
     }
   }
 
@@ -188,7 +225,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 alignment: WrapAlignment.center,
                                 children: [
                                   const Text(
-                                    "Don't have an account? ",
+                                    'Already have an account? ',
                                     style: TextStyle(
                                       color: AppColors.textSecondary,
                                     ),
@@ -227,7 +264,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               const SizedBox(height: 12),
                               SocialSignInButton(
                                 label: 'Continue with Google',
-                                onPressed: () {},
+                                onPressed: _isGoogleSubmitting
+                                    ? null
+                                    : _onGoogleSignInPressed,
                                 leading: const GoogleLogoMark(),
                                 backgroundColor: Colors.white,
                               ),
