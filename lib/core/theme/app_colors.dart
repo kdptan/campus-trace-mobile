@@ -7,8 +7,9 @@ sealed class AppColors {
 
   static const Color linkBlue = Color(0xFF1D4ED8);
 
-  static const Color fieldFill = Color(0xFFF8FAFF);
-  static const Color fieldBorder = Color(0xFFD7E2F3);
+  static const Color fieldFill = Color(0xFFFFFFFF);
+  static const Color fieldBorder = Color(0xFFDDE8FF);
+  static const Color fieldShadow = Color(0x1A4B86F8);
 
   static const Color socialButtonFill = Color(0xFFF3FAFB);
 
